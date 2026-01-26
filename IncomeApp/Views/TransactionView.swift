@@ -14,7 +14,7 @@ struct TransactionView: View {
         VStack {
             HStack {
                 Spacer()
-                Text("date")
+                Text(transaction.displayDate)
                     .font(.system(size: 14))
                 Spacer()
             }
@@ -30,7 +30,7 @@ struct TransactionView: View {
                         Text(transaction.title)
                             .font(.system(size: 15, weight: .bold))
                         Spacer()
-                        Text("CAD $5.00")
+                        Text(transaction.displayNumber)
                             .font(.system(size: 15, weight: .bold))
                     }
                     Text("Completed")
