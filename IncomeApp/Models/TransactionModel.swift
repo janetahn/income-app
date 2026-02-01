@@ -19,10 +19,10 @@ struct Transaction: Identifiable, Hashable {
         dateFormatter.dateStyle = .medium
         return dateFormatter.string(from: date)
     }
-    var displayNumber: String {
+    func displayNumber(currency: Currency) -> String {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
-        numberFormatter.maximumFractionDigits = 2
+        numberFormatter.locale = currency.locale
         return numberFormatter.string(from: amount as NSNumber) ?? "$0.00"
     }
 }

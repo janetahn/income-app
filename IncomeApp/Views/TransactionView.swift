@@ -10,6 +10,8 @@ import SwiftUI
 struct TransactionView: View {
     let transaction: Transaction
     
+    @AppStorage("currencySelection") private var currencySelection: Currency = .cad
+    
     var body: some View {
         VStack {
             HStack {
@@ -30,7 +32,7 @@ struct TransactionView: View {
                         Text(transaction.title)
                             .font(.system(size: 15, weight: .bold))
                         Spacer()
-                        Text(transaction.displayNumber)
+                        Text(transaction.displayNumber(currency: currencySelection))
                             .font(.system(size: 15, weight: .bold))
                     }
                     Text("Completed")
