@@ -8,15 +8,16 @@
 import SwiftUI
 
 struct AddTransactionView: View {
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
+    
     @State private var amount = 0.0
     @State private var selectedTransactionType: TransactionType = .expense
     @State private var transactionTitle = ""
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var showAlert = false
-    @Binding var transactions: [Transaction]
-    var transactionToEdit: Transaction?
+    var transactionToEdit: TransactionItem?
     
     var numberFormatter: NumberFormatter {
         let numberFormatter = NumberFormatter()
@@ -52,17 +53,35 @@ struct AddTransactionView: View {
                     showAlert = true
                     return
                 }
-                let transaction = Transaction(title: transactionTitle, type: selectedTransactionType, amount: amount, date: Date())
                 if let transactionToEdit = transactionToEdit {
-                    guard let indexOfTransaction = transactions.firstIndex(of: transactionToEdit) else {
+                    transactionToEdit.title = transactionTitle
+                    transactionToEdit.transactionType = Int16(selectedTransactionType.rawValue)
+                    transactionToEdit.amount = amount
+                    
+                    do {
+                        try viewContext.save()
+                    } catch {
                         alertTitle = "Something went wrong"
-                        alertMessage = "Transaction cannot be found."
+                        alertMessage = "Couldn't update Transaction"
                         showAlert = true
                         return
                     }
-                    transactions[indexOfTransaction] = transaction
                 } else {
-                    transactions.append(transaction)
+                    let transaction = TransactionItem(context: viewContext)
+                    transaction.id = UUID()
+                    transaction.title = transactionTitle
+                    transaction.transactionType = Int16(selectedTransactionType.rawValue)
+                    transaction.amount = amount
+                    transaction.date = Date()
+                    
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        alertTitle = "Something went wrong"
+                        alertMessage = "Could not save new Transaction"
+                        showAlert = true
+                        return
+                    }
                 }
                 
                 dismiss()
@@ -82,8 +101,8 @@ struct AddTransactionView: View {
         .onAppear(perform: {
             if let transactionToEdit = transactionToEdit {
                 amount = transactionToEdit.amount
-                transactionTitle = transactionToEdit.title
-                selectedTransactionType = transactionToEdit.type
+                transactionTitle = transactionToEdit.wrappedTitle
+                selectedTransactionType = transactionToEdit.wrappedTransactionType
             }
         })
         .padding(.top)
@@ -97,5 +116,6 @@ struct AddTransactionView: View {
 }
 
 #Preview {
-    AddTransactionView(transactions: .constant([]))
+    let dataManager = DataManager.sharedPreview
+    return AddTransactionView().environment(\.managedObjectContext, dataManager.container.viewContext)
 }

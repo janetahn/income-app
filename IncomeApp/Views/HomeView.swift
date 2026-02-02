@@ -6,29 +6,33 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct HomeView: View {
     
-    @State private var transactions: [Transaction] = [
-        Transaction(title: "Apple", type: .expense, amount: 5.00, date: Date()),
-        Transaction(title: "Apple", type: .expense, amount: 5.00, date: Date())
-    ]
     @State private var showAddTransactionView = false
     @State private var showSettings = false
-    @State private var transactionToEdit: Transaction?
+    @State private var transactionToEdit: TransactionItem?
     
     @AppStorage("orderDescending") var orderDescending = false
     @AppStorage("minimumTransaction") var minimumTransaction = 0.0
     @AppStorage("currencySelection") private var currencySelection: Currency = .cad
     
-    private var displayTransactions: [Transaction] {
-        let sortTransactions = orderDescending ? transactions.sorted(by: { $0.date < $1.date }) : transactions.sorted(by: { $0.date > $1.date })
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    @FetchRequest(sortDescriptors: []) var transactions: FetchedResults<TransactionItem>
+    
+    private var displayTransactions: [TransactionItem] {
+        let sortTransactions = orderDescending ? transactions.sorted(by: { $0.wrappedDate < $1.wrappedDate }) : transactions.sorted(by: { $0.wrappedDate > $1.wrappedDate })
+        guard minimumTransaction > 0 else {
+            return sortTransactions
+        }
         let filteredTransactions = sortTransactions.filter({ $0.amount > minimumTransaction })
         return filteredTransactions
     }
     
     private var totalExpenses: String {
-        let sumExpenses = transactions.filter({ $0.type == .expense }).reduce(0, { $0 + $1.amount })
+        let sumExpenses = transactions.filter({ $0.wrappedTransactionType == .expense }).reduce(0, { $0 + $1.wrappedAmount })
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = currencySelection.locale
@@ -36,7 +40,7 @@ struct HomeView: View {
     }
     
     private var totalIncomes: String {
-        let sumIncomes = transactions.filter({ $0.type == .income }).reduce(0, { $0 + $1.amount})
+        let sumIncomes = transactions.filter({ $0.wrappedTransactionType == .income }).reduce(0, { $0 + $1.wrappedAmount})
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = currencySelection.locale
@@ -44,8 +48,8 @@ struct HomeView: View {
     }
     
     private var totalBalance: String {
-        let sumExpenses = transactions.filter({ $0.type == .expense }).reduce(0, { $0 + $1.amount })
-        let sumIncomes = transactions.filter({ $0.type == .income }).reduce(0, { $0 + $1.amount})
+        let sumExpenses = transactions.filter({ $0.wrappedTransactionType == .expense }).reduce(0, { $0 + $1.wrappedAmount })
+        let sumIncomes = transactions.filter({ $0.wrappedTransactionType == .income }).reduce(0, { $0 + $1.wrappedAmount})
         let total = sumIncomes - sumExpenses
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
@@ -59,7 +63,7 @@ struct HomeView: View {
         VStack {
             Spacer()
             NavigationLink {
-                AddTransactionView(transactions: $transactions)
+                AddTransactionView()
             } label: {
                 Text("+")
                     .font(.largeTitle)
@@ -139,10 +143,10 @@ struct HomeView: View {
             }
             .navigationTitle("Income")
             .navigationDestination(item: $transactionToEdit, destination: { transactionToEdit in
-                AddTransactionView(transactions: $transactions, transactionToEdit: transactionToEdit)
+                AddTransactionView(transactionToEdit: transactionToEdit)
             })
             .navigationDestination(isPresented: $showAddTransactionView, destination: {
-                AddTransactionView(transactions: $transactions)
+                AddTransactionView()
             })
             .sheet(isPresented: $showSettings, content: {
                 SettingsView()
@@ -162,12 +166,16 @@ struct HomeView: View {
     }
     
     private func delete(at offsets: IndexSet) {
-        transactions.remove(atOffsets: offsets)
+        for index in offsets {
+            let transactionToDelete = transactions[index]
+            viewContext.delete(transactionToDelete)
+        }
     }
 }
 
 #Preview {
-    HomeView()
+    let dataManager = DataManager.sharedPreview
+    return HomeView().environment(\.managedObjectContext, dataManager.container.viewContext)
 }
 
 
